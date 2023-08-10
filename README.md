@@ -65,7 +65,7 @@ python main.py --problem [problem_name]
 Available problems are in *available_tasks.txt.*
 
 
-### Demo
+## Demo
 
 #### 1. Run command 
 
@@ -80,20 +80,20 @@ python main.py --problem click-button-sequence
 
 <img src="artifacts/initial_information.png" alt="image-20230530212605407" style="zoom: 80%;" />
 
-##### 3. Get initial plan from the AssistantAgent
+#### 3. Get initial plan from the AssistantAgent
 ![](artifacts/initial_plan.png)
 
-##### 4. AssistantAgent checks the initial plan's problems.
+#### 4. AssistantAgent checks the initial plan's problems.
 ![](artifacts/self_cri.png)
 ![](artifacts/self_cri2.png)
 
-##### 5. Excute step 1 based on current plan and environments
+#### 5. Excute step 1 based on current plan and environments
 <img src="artifacts/step1.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
-##### 6. Excute step 2 based on current plan and environments
+#### 6. Excute step 2 based on current plan and environments
 <img src="artifacts/step2.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
-##### 7. Task Success
+#### 7. Task Success
 
 <img src="artifacts/success.png" alt="image-20230530212605407" style="zoom: 50%;" />
 
