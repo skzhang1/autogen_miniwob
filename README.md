@@ -27,7 +27,7 @@ Miniwob++ provides a suitable environment to evaluate the ability of an agent to
 <img src="artifacts/rl.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
 
-We want to demonstrate.
+We want to demonstrate:
 
 1. **Off-the-shelf implementation:** Leverage Assistantagent and "UserProxyAgents".
 
@@ -38,8 +38,6 @@ We want to demonstrate.
 (1) Users can customize their own intelligent agent in the AssistantAgent, and can also create their own environment in the UserproxyAgent. 
 
 (2) The environment and the agent are decoupled, and neither will affect the other when the other changes. This is convenient for later maintenance and modification.
-
-**To disuss: Comparison with autogpt and lanchain.**
 
 ## How to run
 
