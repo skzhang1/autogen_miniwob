@@ -24,14 +24,14 @@ Miniwob++ provides a suitable environment to evaluate the ability of an agent to
 1. Some essential information needs to be obtained by interactions between the agent and the environment.
 2. The environment is dynamic and therefore agent needs to adapt its behavior to the environment at each moment in time.  
 
-<img src="artifacts/rl.png" alt="image-20230530212605407" style="zoom: 60%;" />
+<img src="artifacts/rl.png" alt="image-20230530212605407" style="zoom: 40%;" />
 
 
 We want to demonstrate:
 
 1. **Off-the-shelf implementation:** Leverage Assistantagent and "UserProxyAgents".
 
-<img src="artifacts/imp.png" alt="image-20230530212605407" style="zoom: 45%;" />
+<img src="artifacts/imp.png" alt="image-20230530212605407" style="zoom: 30%;" />
 
 2. **Programmable and Modularity:**
 
