@@ -1,5 +1,5 @@
 import os
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = ""
 from flaml.autogen.agent.assistant_agent import AssistantAgent
 from miniwob_agent import MiniWobUserProxyAgent
 from flaml import oai

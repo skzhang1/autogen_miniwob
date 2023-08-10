@@ -1,8 +1,8 @@
 # Browser interactions application
 
-## Miniwob++
+## Miniwob++ benchmark
 
-<img src="artifacts/showcase.gif" alt="image-20230530212605407" style="zoom: 50%;" />
+<img src="artifacts/showcase.gif" alt="image-20230530212605407" style="zoom: 35%;" />
 
 The goal of the benchmark Miniwob++ is to train machine learning models (agents) to do things in a browser that can be specified in natural language. It contains a collection of over 100 web interaction environments along with JavaScript and Python interfaces for programmatically interacting with them. It use The Gymnasium interface allows an agent to initialize and interact with a MiniWoB++ environment as follows:
 ```
@@ -20,50 +20,23 @@ finally:
 ```
 
 ## Miniwob++ integration with Autogen
-Miniwob++ provides a suitable environment to evaluate the ability of an agent to interact with a dynamic environment. Agent interacting with a dynamic environmental system to accomplish tasks seems to be a very common scenario. For example, most reinforcement learning scenarios. These interactions process could be characterized by the following two points:
-1. Some essential information needs to be obtained by interactions between the agent and the environment.
-2. The environment is dynamic and therefore agent needs to adapt its behavior to the environment at each moment in time.  
-
-<img src="artifacts/rl.png" alt="image-20230530212605407" style="zoom: 40%;" />
-
-
-We want to demonstrate:
-
-1. **Off-the-shelf implementation:** Leverage Assistantagent and "UserProxyAgents".
+We evaluate Autogen’s capabilities for making online decisions on the benchmark minibwob++. We used two agents for our implementation. One is the origin AssistantAgent of Autogen without any modification. This agent is responsible for proposing/modifying the plan to complete the given task and make decisions at each step based on the interaction environment. The other is MiniwobUserProxyAgent, which is responsible for interacting with the minibwob++ benchmark, executing the actions sent by the AssistantAgent, and returning the results to the AssistantAgent. 
 
 <img src="artifacts/imp.png" alt="image-20230530212605407" style="zoom: 30%;" />
 
-2. **Programmable and Modularity:**
+## Setup
 
-(1) Users can customize their own intelligent agent in the AssistantAgent, and can also create their own environment in the UserproxyAgent. 
-
-(2) The environment and the agent are decoupled, and neither will affect the other when the other changes. This is convenient for later maintenance and modification.
-
-## How to run
-
-
-### Setup
-
+1. Install packages
 ```sh
 conda install --yes --file requirements.txt 
 cd computergym
 pip install -e .
 ```
 
-
-### Run
-**Step 1:** Set up openai key in *main.py* and *config.json*.  
+2. Set up openai key in *main.py* and *config.json*.  
 
 
-**Step 2:**
-To run the code, simply execute the following command:
-```sh
-python main.py --problem [problem_name]
-```
-Available problems are in *available_tasks.txt.*
-
-
-## Demo
+## Step-by-step demo
 
 #### 1. Run command 
 
@@ -71,6 +44,7 @@ Available problems are in *available_tasks.txt.*
 python main.py --problem click-button-sequence
 ```
 
+*Available problems are in available_tasks.txt.*
 
 #### 2. MiniWobUserProxyAgent sends enviroment and task information to the AssistantAgent
 
@@ -95,10 +69,18 @@ python main.py --problem click-button-sequence
 
 <img src="artifacts/success.png" alt="image-20230530212605407" style="zoom: 50%;" />
 
-## Evaluation
+## Evaluation on multiple tasks
+
+We make a comparison with the state of the art method RCI[1].  
+
 <img src="artifacts/result.png" alt="image-20230530212605407" style="zoom: 45%;" />
 
 
 1. Including all clicking tasks from easy to hard
-2. Remove examples that will exceed tokens limit when agent interactions 
+2. Remove examples that will exceed tokens limit when agent interactions
+
+
+## Reference
+
+[1] Kim, G., Baldi, P., & McAleer, S. (2023). Language models can solve computer tasks. arXiv preprint arXiv:2303.17491.
 
