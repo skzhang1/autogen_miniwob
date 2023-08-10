@@ -2,7 +2,7 @@
 
 ## Miniwob++
 
-![](/artifacts/showcase.gif)
+<img src="artifacts/showcase.gif" alt="image-20230530212605407" style="zoom: 50%;" />
 
 The goal of the benchmark Miniwob++ is to train machine learning models (agents) to do things in a browser that can be specified in natural language. It contains a collection of over 100 web interaction environments along with JavaScript and Python interfaces for programmatically interacting with them. It use The Gymnasium interface allows an agent to initialize and interact with a MiniWoB++ environment as follows:
 ```
@@ -24,13 +24,14 @@ Miniwob++ provides a suitable environment to evaluate the ability of an agent to
 1. Some essential information needs to be obtained by interactions between the agent and the environment.
 2. The environment is dynamic and therefore agent needs to adapt its behavior to the environment at each moment in time.  
 
-![](/artifacts/rl.png)
+<img src="artifacts/rl.png" alt="image-20230530212605407" style="zoom: 60%;" />
+
 
 We want to demonstrate.
 
 1. **Off-the-shelf implementation:** Leverage Assistantagent and "UserProxyAgents".
-![](artifacts/imp.png)
 
+<img src="artifacts/imp.png" alt="image-20230530212605407" style="zoom: 45%;" />
 
 2. **Programmable and Modularity:**
 
@@ -75,31 +76,30 @@ python main.py --problem click-button-sequence
 
 #### 2. MiniWobUserProxyAgent sends enviroment and task information to the AssistantAgent
 
-![](artifacts/initial_env.png)
-![](artifacts/initial_information.png)
+<img src="artifacts/initial_env.png" alt="image-20230530212605407" style="zoom: 50%;" />
+
+<img src="artifacts/initial_information.png" alt="image-20230530212605407" style="zoom: 80%;" />
 
 ##### 3. Get initial plan from the AssistantAgent
-
 ![](artifacts/initial_plan.png)
 
 ##### 4. AssistantAgent checks the initial plan's problems.
-
 ![](artifacts/self_cri.png)
 ![](artifacts/self_cri2.png)
 
 ##### 5. Excute step 1 based on current plan and environments
-![](artifacts/step1.png)
+<img src="artifacts/step1.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
-##### 5. Excute step 2 based on current plan and environments
-![](artifacts/step2.png)
+##### 6. Excute step 2 based on current plan and environments
+<img src="artifacts/step2.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
-##### 6. Task Success
+##### 7. Task Success
 
-![](artifacts/success.png)
+<img src="artifacts/success.png" alt="image-20230530212605407" style="zoom: 50%;" />
 
 ## Evaluation
+<img src="artifacts/result.png" alt="image-20230530212605407" style="zoom: 45%;" />
 
-![](/artifacts/result.png)
 
 1. Including all clicking tasks from easy to hard
 2. Remove examples that will exceed tokens limit when agent interactions 
