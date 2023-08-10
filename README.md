@@ -55,14 +55,14 @@ python main.py --problem click-button-sequence
 #### 3. Get initial plan from the AssistantAgent
 ![](artifacts/initial_plan.png)
 
-#### 4. AssistantAgent double check the initial plan
+#### 4. AssistantAgent double-check the initial plan
 ![](artifacts/self_cri.png)
 ![](artifacts/self_cri2.png)
 
-#### 5. MiniwobUserProxyAgent excute step 1 based on the plan and environment
+#### 5. MiniwobUserProxyAgent excutes step 1 based on the plan and environment
 <img src="artifacts/step1.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
-#### 6. MiniwobUserProxyAgent excute step 2 based on the plan and environment
+#### 6. MiniwobUserProxyAgent excutes step 2 based on the plan and environment
 <img src="artifacts/step2.png" alt="image-20230530212605407" style="zoom: 60%;" />
 
 #### 7. Task Success
