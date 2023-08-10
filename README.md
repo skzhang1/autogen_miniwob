@@ -63,8 +63,41 @@ python main.py --problem [problem_name]
 ```
 Available problems are in *available_tasks.txt.*
 
-## Evaluation
 
+### Demo
+
+#### 1. Run command 
+
+```sh
+python main.py --problem click-button-sequence
+```
+
+
+#### 2. MiniWobUserProxyAgent sends enviroment and task information to the AssistantAgent
+
+![](artifacts/initial_env.png)
+![](artifacts/initial_information.png)
+
+##### 3. Get initial plan from the AssistantAgent
+
+![](artifacts/initial_plan.png)
+
+##### 4. AssistantAgent checks the initial plan's problems.
+
+![](artifacts/self_cri.png)
+![](artifacts/self_cri2.png)
+
+##### 5. Excute step 1 based on current plan and environments
+![](artifacts/step1.png)
+
+##### 5. Excute step 2 based on current plan and environments
+![](artifacts/step2.png)
+
+##### 6. Task Success
+
+![](artifacts/success.png)
+
+## Evaluation
 
 ![](/artifacts/result.png)
 

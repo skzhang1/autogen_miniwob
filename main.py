@@ -1,8 +1,17 @@
 import os
-os.environ["OPENAI_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = "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"
 from flaml.autogen.agent.assistant_agent import AssistantAgent
 from miniwob_agent import MiniWobUserProxyAgent
 from flaml import oai
+import argparse
+
+
+parser = argparse.ArgumentParser(description="input task")
+parser.add_argument(
+    "--problem", type=str, default="click-button-sequence", help="task"
+)
+args = parser.parse_args()
+problem = args.problem
 
 config_list = oai.config_list_gpt4_gpt35()
 config_list[0]['model'] = "gpt-3.5-turbo" 
@@ -24,7 +33,7 @@ for _ in range(10):
         name="MiniWobUserProxyAgent", 
         # human_input_mode="NEVER",
         # use_docker=False,
-        problem = "use-spinner",
+        problem = problem,
         headless=False,
     )
 

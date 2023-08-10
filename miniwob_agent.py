@@ -365,7 +365,7 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
         return instruciton
     
     def save_result(self, value):
-        path_dir = os.path.join("/Users/shaokunzhang/projects/TEST/rci-agent/result", self.problem+".json")
+        path_dir = os.path.join("./result", self.problem+".json")
         if os.path.exists(path_dir):
             with open(path_dir, 'r') as f:
                 data = json.load(f)
