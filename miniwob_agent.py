@@ -1,15 +1,14 @@
-from flaml.autogen.agent import ResponsiveAgent
-from collections import defaultdict
-import gym
-import random
 import json
+from prompt import Prompt
 import time
-from typing import Callable, Dict, Optional, Union
-from typing import Any, Callable, Dict, List, Optional, Union
 import openai
+from pathlib import Path
 from selenium.webdriver.common.keys import Keys
-import json
 import os
+import logging
+import random
+import computergym
+import gym
 from computergym.miniwob.miniwob_interface.action import (
     MiniWoBType,
     MiniWoBElementClickId,
@@ -18,174 +17,24 @@ from computergym.miniwob.miniwob_interface.action import (
     MiniWoBMoveXpath,
 )
 import re
-import matplotlib.pyplot as plt
-
-def last_boxed_only_string(string: str) -> Optional[str]:
-    """Source: https://github.com/hendrycks/math
-    Extract the last \\boxed{...} or \\fbox{...} element from a string.
-    """
-    if "\\boxed" in string:
-        idx = string.rfind("\\boxed")
-        if idx < 0:
-            idx = string.rfind("\\fbox")
-            if idx < 0:
-                return None
-
-        i = idx
-        right_brace_idx = None
-        num_left_braces_open = 0
-        while i < len(string):
-            if string[i] == "{":
-                num_left_braces_open += 1
-            if string[i] == "}":
-                num_left_braces_open -= 1
-                if num_left_braces_open == 0:
-                    right_brace_idx = i
-                    break
-            i += 1
-
-        if right_brace_idx is None:
-            retval = None
-        else:
-            retval = string[idx : right_brace_idx + 1]
-        return retval
-    else:
-        return string
-
-def remove_boxed(string: str) -> Optional[str]:
-    left = "\\boxed{"
-    if string[: len(left)] == left:
-        return string[len(left) : -1]
-    else:
-        return string
-    
-def remove_text(string: str) -> Optional[str]:
-    left = "\\text{"
-    if string[: len(left)] == left:
-        return string[len(left) : -1]
-    else:
-        return string
-    
-class Prompt:
-    def __init__(self, env: str = "click-button") -> None:
-        self.llm = "chatgpt"
-        self.davinci_type_regex = "^type\s.{1,}$"
-        self.chatgpt_type_regex = '^type\s[^"]{1,}$'
-        self.press_regex = (
-            "^press\s(enter|arrowleft|arrowright|arrowup|arrowdown|backspace)$"
-        )
-        self.clickxpath_regex = "^clickxpath\s.{1,}$"
-        self.clickoption_regex = "^clickoption\s.{1,}$"
-        self.movemouse_regex = "^movemouse\s.{1,}$"
-
-        if os.path.exists(f"prompt/{env}/"):
-            base_dir = f"prompt/{env}/"
-        else:
-            base_dir = f"prompt/"
-
-        with open(base_dir + "example.txt") as f:
-            self.example_prompt = f.read()
-
-        with open(base_dir + "first_action.txt") as f:
-            self.first_action_prompt = f.read()
-
-        with open(base_dir + "base.txt") as f:
-            self.base_prompt = f.read()
-            self.base_prompt = self.replace_regex(self.base_prompt)
-
-        with open(base_dir + "initialize_plan.txt") as f:
-            self.init_plan_prompt = f.read()
-
-        with open(base_dir + "action.txt") as f:
-            self.action_prompt = f.read()
-
-        with open(base_dir + "rci_action.txt") as f:
-            self.rci_action_prompt = f.read()
-            self.rci_action_prompt = self.replace_regex(self.rci_action_prompt)
-
-        with open(base_dir + "update_action.txt") as f:
-            self.update_action = f.read()
-
-    def replace_regex(self, base_prompt):
-        if self.llm == "chatgpt":
-            base_prompt = base_prompt.replace("{type}", self.chatgpt_type_regex)
-        elif self.llm == "davinci":
-            base_prompt = base_prompt.replace("{type}", self.davinci_type_regex)
-        else:
-            raise NotImplemented
-
-        base_prompt = base_prompt.replace("{press}", self.press_regex)
-        base_prompt = base_prompt.replace("{clickxpath}", self.clickxpath_regex)
-        base_prompt = base_prompt.replace("{clickoption}", self.clickoption_regex)
-        base_prompt = base_prompt.replace("{movemouse}", self.movemouse_regex)
-
-        return base_prompt
-
-def _get_html_state(problem, states):
-    extra_html_task = [
-        "click-dialog",
-        "click-dialog-2",
-        "use-autocomplete",
-        "choose-date",
-    ]
-
-    html_body = states[0].html_body
-    if problem in extra_html_task:
-        html_body += states[0].html_extra
-    return html_body
-
-
-def _convert_to_miniwob_action(instruction: str):
-    instruction = instruction.split(" ")
-    inst_type = instruction[0]
-    inst_type = inst_type.lower()
-
-    if inst_type == "type":
-        characters = " ".join(instruction[1:])
-        characters = characters.replace('"', "")
-        return MiniWoBType(characters)
-    elif inst_type == "clickid":
-        element_id = " ".join(instruction[1:])
-        return MiniWoBElementClickId(element_id)
-    elif inst_type == "press":
-        key_type = instruction[1].lower()
-        if key_type == "enter":
-            return MiniWoBType("\n")
-        elif key_type == "space":
-            return MiniWoBType(" ")
-        elif key_type == "arrowleft":
-            return MiniWoBType(Keys.LEFT)
-        elif key_type == "arrowright":
-            return MiniWoBType(Keys.RIGHT)
-        elif key_type == "backspace":
-            return MiniWoBType(Keys.BACKSPACE)
-        elif key_type == "arrowup":
-            return MiniWoBType(Keys.UP)
-        elif key_type == "arrowdown":
-            return MiniWoBType(Keys.DOWN)
-        else:
-            raise NotImplemented
-    elif inst_type == "movemouse":
-        xpath = " ".join(instruction[1:])
-        return MiniWoBMoveXpath(xpath)
-    elif inst_type == "clickxpath":
-        xpath = " ".join(instruction[1:])
-        return MiniWoBElementClickXpath(xpath)
-    elif inst_type == "clickoption":
-        xpath = " ".join(instruction[1:])
-        return MiniWoBElementClickOption(xpath)
-    else:
-        raise ValueError("Invalid instruction")
+from flaml.autogen.agentchat import ResponsiveAgent
+from flaml.autogen.agentchat.agent import Agent
+from typing import Any, Callable, Dict, List, Optional, Union
 
 class MiniWobUserProxyAgent(ResponsiveAgent):
-    """(Experimental) A agent that can handle online decision making in miniwob+ benchmark."""
-
-    MAX_CONSECUTIVE_AUTO_REPLY = (
-        15  # maximum number of consecutive auto replies (subject to future change)
-    )
-
     def __init__(
         self,
+        # from main
+        env_name: str,
+        headless_miniwob = True,
+        # origin
+        env = None,
+        rci_plan_loop: int = 1,
+        rci_limit: int = 1,
+        llm="chatgpt",
+        with_task=True,
+        state_grounding=True,
+        # autogen
         name= "MinWobAgent",
         is_termination_msg = lambda x: "terminate" in x.get("content").lower(),  
         max_consecutive_auto_reply: Optional[int] = None,
@@ -197,8 +46,9 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
         problem=None,
         headless=False,
         **kwargs,
-    ):
-    
+    ) -> None:
+        # autogen
+
         super().__init__(
             name=name,
             is_termination_msg=is_termination_msg,
@@ -206,69 +56,187 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
             human_input_mode = human_input_mode,
             function_map = function_map,
             code_execution_config = code_execution_config,
-            oai_config = oai_config,
+            llm_config = oai_config,
             system_message = system_message,
             **kwargs,
         )
-
-        self.problem = problem
-        self.headless = headless
-        self.current_plan = ""
-        self.past_instruction = []
+        
         with open("config.json") as config_file:
             api_key = json.load(config_file)["api_key"]
             openai.api_key = api_key
-        self.llm = "chatgpt"
-        self.model = "gpt-3.5-turbo"
-
-        self.prompt = Prompt(env=problem)
-        self.env = gym.make(
-            "MiniWoBEnv-v0", env_name=self.problem, headless=self.headless
-        )
-        states = self.env.reset(seeds=[random.random()], record_screenshots=True)
-        self.task = states[0].utterance
-        html_state = _get_html_state(self.problem, states)
-        self.html_state = html_state  
-
-        # others
-        self.identify_plan = False
-        self.get_plan = True
-
-        self.identify_action = False
-        self.ask_action = True
-
-        self.rci_plan_loop = 0
-        self.unexecuted_steps = 0
-        self.pt = None
-        self.rci_action = 1
-
-        # succeed
-        self.success = 0
         
-    def _webpage_state_prompt(self, initial: bool = False): 
-        pt = "\n\n"
-        pt += "Below is the HTML code of the webpage where the agent should solve a task.\n"
-        pt += self.html_state
-        pt += "\n\n"
-        if self.prompt.example_prompt and initial:
-            pt += self.prompt.example_prompt
-            pt += "\n\n"
+        # main
+        self.env_name = env_name
+        self.real_env = gym.make("MiniWoBEnv-v0", env_name=env_name, headless=headless_miniwob)
+        self.recipient = None
+        self.silent = False
+        
+        # rci
+        self.rci_limit = rci_limit
+        self.rci_plan_loop = rci_plan_loop
+        self.llm = llm
+        self.prompt = Prompt(env=env_name)
+        self.state_grounding = state_grounding
 
-        pt += "Current task: "
-        pt += self.task
-        pt += "\n"
+        self.load_model()
 
-        return pt
+        self.html_state = ""
+        self.task = ""
+        self.with_task = with_task
+        self.current_plan = ""
+        self.past_plan = []
+        self.past_instruction = []
+        self.custom_gaol = False
 
-    def generate_init_message(self):
+        self.history_name = time.strftime("%Y%m%d-%H%M%S")
+        config_string = (
+            f"erci{rci_plan_loop}_state{self.state_grounding}_irci{rci_limit}"
+        )
+        if self.prompt.example_prompt:
+            self.file_path = Path(
+                f"history/{self.llm}/{env_name}/{config_string}/few-shot/{self.history_name}.txt"
+            )
+        else:
+            self.file_path = Path(
+                f"history/{self.llm}/{env_name}/{config_string}/zero-shot/{self.history_name}.txt"
+            )
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # flow_control
+        self.plan_stage = True
+        self.criticizm = True
+        self.unexecuted_steps= 0
+        self.ask_action = True
+        self.judge_action = True
 
-        super().reset()
-        pt = self.prompt.base_prompt
-        pt = self._webpage_state_prompt(initial=True)
-        pt += self.prompt.init_plan_prompt
-        return pt
+    def convert_to_miniwob_action(self, instruction: str):
+        instruction = instruction.split(" ")
+        inst_type = instruction[0]
+        inst_type = inst_type.lower()
 
-    def _current_plan_prompt(self):
+        if inst_type == "type":
+            characters = " ".join(instruction[1:])
+            characters = characters.replace('"', "")
+            return MiniWoBType(characters)
+        elif inst_type == "clickid":
+            element_id = " ".join(instruction[1:])
+            return MiniWoBElementClickId(element_id)
+        elif inst_type == "press":
+            key_type = instruction[1].lower()
+            if key_type == "enter":
+                return MiniWoBType("\n")
+            elif key_type == "space":
+                return MiniWoBType(" ")
+            elif key_type == "arrowleft":
+                return MiniWoBType(Keys.LEFT)
+            elif key_type == "arrowright":
+                return MiniWoBType(Keys.RIGHT)
+            elif key_type == "backspace":
+                return MiniWoBType(Keys.BACKSPACE)
+            elif key_type == "arrowup":
+                return MiniWoBType(Keys.UP)
+            elif key_type == "arrowdown":
+                return MiniWoBType(Keys.DOWN)
+            else:
+                raise NotImplemented
+        elif inst_type == "movemouse":
+            xpath = " ".join(instruction[1:])
+            return MiniWoBMoveXpath(xpath)
+        elif inst_type == "clickxpath":
+            xpath = " ".join(instruction[1:])
+            return MiniWoBElementClickXpath(xpath)
+        elif inst_type == "clickoption":
+            xpath = " ".join(instruction[1:])
+            return MiniWoBElementClickOption(xpath)
+        else:
+            raise ValueError("Invalid instruction")
+        
+    def load_model(self):
+        with open("config.json") as config_file:
+            api_key = json.load(config_file)["api_key"]
+            openai.api_key = api_key
+        if self.llm == "chatgpt":
+            self.model = "gpt-3.5-turbo"
+        elif self.llm == "gpt4":
+            self.model = "gpt-4"
+        elif self.llm == "davinci":
+            self.model = "text-davinci-003"
+        elif self.llm == "ada":
+            self.model = "ada"
+        elif self.llm == "babbage":
+            self.model = "babbage"
+        elif self.llm == "curie":
+            self.model = "curie"
+        elif self.llm == "davinci1":
+            self.model = "davinci"
+        elif self.llm == "davinci2":
+            self.model = "text-davinci-002"
+        else:
+            raise NotImplemented
+
+    def update_html_state(self, state: str):
+        self.html_state = state
+
+        return
+
+    def set_goal(self, goal: str):
+        self.custom_gaol = True
+        self.task = goal
+
+        return
+   
+    def check_regex(self, instruciton):
+        return (
+            (not re.search(self.prompt.clickxpath_regex, instruciton, flags=re.I))
+            and (not re.search(self.prompt.chatgpt_type_regex, instruciton, flags=re.I))
+            and (not re.search(self.prompt.davinci_type_regex, instruciton, flags=re.I))
+            and (not re.search(self.prompt.press_regex, instruciton, flags=re.I))
+            and (not re.search(self.prompt.clickoption_regex, instruciton, flags=re.I))
+            and (not re.search(self.prompt.movemouse_regex, instruciton, flags=re.I))
+        )
+
+    def process_instruction(self, instruciton: str):
+        end_idx = instruciton.find("`")
+        if end_idx != -1:
+            instruciton = instruciton[:end_idx]
+
+        instruciton = instruciton.replace("`", "")
+        instruciton = instruciton.replace("\n", "")
+        instruciton = instruciton.replace("\\n", "\n")
+        instruciton = instruciton.strip()
+        instruciton = instruciton.strip("'")
+
+        return instruciton
+
+    def get_plan_step(self):
+        idx = 1
+        while True:
+            if (str(idx) + ".") not in self.current_plan:
+                return (idx - 1) + 1
+            idx += 1
+                   
+    def get_html_state(self, env_name, states):
+        extra_html_task = [
+            "click-dialog",
+            "click-dialog-2",
+            "use-autocomplete",
+            "choose-date",
+        ]
+
+        html_body = states[0].html_body
+        if env_name in extra_html_task:
+            html_body += states[0].html_extra
+        return html_body
+
+    def update_action(self, action = None):
+        if self.prompt.update_action and self.state_grounding:
+            pt = self.prompt.update_action
+            message = self.get_response(pt)
+            action = message
+
+        return action
+
+    def current_plan_prompt(self):
         pt = "\n\n"
         pt += "Here is a plan you are following now.\n"
         pt += f"{self.current_plan}"
@@ -276,7 +244,7 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
 
         return pt
 
-    def _instruction_history_prompt(self):
+    def instruction_history_prompt(self):
         pt = "\n\n"
         pt += "We have a history of instructions that have been already executed by the autonomous agent so far.\n"
         if not self.past_instruction:
@@ -290,31 +258,99 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
 
         return pt
 
-    def rci_action(self, instruciton: str, pt=None):
-        instruciton = self._process_instruction(instruciton)
+    def webpage_state_prompt(self, init_plan: bool = False, with_task=False):
+        pt = "\n\n"
+        pt += "Below is the HTML code of the webpage where the agent should solve a task.\n"
+        pt += self.html_state
+        pt += "\n\n"
+        if self.prompt.example_prompt and (init_plan or self.rci_plan_loop == -1):
+            pt += self.prompt.example_prompt
+            pt += "\n\n"
+        if with_task:
+            pt += "Current task: "
+            pt += self.task
+            pt += "\n"
+
+        return pt
+
+    def save_result(self, value):
+        path_dir = os.path.join("./result", self.env_name+".json")
+        if os.path.exists(path_dir):
+            with open(path_dir, 'r') as f:
+                data = json.load(f)
+        else:
+            data = {}
+
+        if 'value' in data:
+            if value >0:
+                data['value'] += 1
+        else:
+            data['value'] = 0
+        print(self.env_name)
+        print("success rate", data['value'])
+        with open(path_dir, 'w') as f:
+            json.dump(data, f)
+            
+    def rci_plan(self, pt=None):
+        # pt += "\n\nFind problems with this plan for the given task compared to the example plans.\n\n"
+        pt = "\n\nFind problems with this plan for the given task compared to the example plans.\n\n"
+        criticizm = self.get_response(pt)
+        pt += criticizm
+
+        # pt += "\n\nBased on this, what is the plan for the agent to complete the task?\n\n"
+        pt = "\n\nBased on this, what is the plan for the agent to complete the task?\n\n"
+        # pt += self.webpage_state_prompt()
+        plan = self.get_response(pt)
+
+        return pt, plan
+
+    def rci_action(self, instruciton):
+        instruciton = self.process_instruction(instruciton)
 
         loop_num = 0
-        while self._check_regex(instruciton):
+        while self.check_regex(instruciton):
             if loop_num >= self.rci_limit:
-                print(instruciton)
                 raise ValueError("Action RCI failed")
 
-            pt += self.prompt.rci_action_prompt
+            pt = self.prompt.rci_action_prompt
             instruciton = self.get_response(pt)
 
-            pt += instruciton
-            instruciton = self._process_instruction(instruciton)
+            # pt += instruciton
+            instruciton = self.process_instruction(instruciton)
 
             loop_num += 1
 
-        return pt, instruciton
+        return instruciton
 
-    def ask_action_prompt(self):
+    def initialize_plan(self):
+        if not self.custom_gaol:
+            if self.with_task:
+                self.initialize_task()
+
+        if not self.prompt.init_plan_prompt or self.rci_plan_loop == -1:
+            return
+
         pt = self.prompt.base_prompt
-        pt += self._webpage_state_prompt()
-        if self.prompt.init_plan_prompt:
-            pt += self._current_plan_prompt()
-        pt += self._instruction_history_prompt()
+        pt += self.webpage_state_prompt(True, with_task=self.with_task)
+        pt += self.prompt.init_plan_prompt
+
+        # in receive
+        message = "\n" + self.get_response(pt)   
+        pt += message
+
+        for _ in range(self.rci_plan_loop):
+            pt, message = self.rci_plan(pt)
+            pt += message
+
+        self.current_plan = message
+        return
+
+    def generate_action(self) -> str:
+        # pt = self.prompt.base_prompt # check
+        pt = self.webpage_state_prompt(with_task=self.with_task)
+        if self.prompt.init_plan_prompt and self.rci_plan_loop != -1:
+            pt += self.current_plan_prompt()
+        pt += self.instruction_history_prompt()
         if self.past_instruction:
             update_action_prompt = self.prompt.action_prompt.replace(
                 "{prev_inst}", self.past_instruction[-1]
@@ -335,118 +371,153 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
             action_prompt = update_action_prompt
         else:
             action_prompt = self.prompt.first_action_prompt
-        action_prompt = ("Please put the instruction in \\boxed{} in your reply and do not adding other characters. \
-        based on the plan,"+ action_prompt)
+
+        if self.rci_plan_loop == -1:
+            action_prompt = "Based on the task, " + action_prompt
+        else:
+            action_prompt = (
+                "Based on the plan and the history of instructions executed so far, "
+                + action_prompt
+            )
+
         pt += action_prompt
-
-        return pt
-
-    def _check_regex(self, instruciton):
-        return (
-            (not re.search(self.prompt.clickxpath_regex, instruciton, flags=re.I))
-            and (not re.search(self.prompt.chatgpt_type_regex, instruciton, flags=re.I))
-            and (not re.search(self.prompt.davinci_type_regex, instruciton, flags=re.I))
-            and (not re.search(self.prompt.press_regex, instruciton, flags=re.I))
-            and (not re.search(self.prompt.clickoption_regex, instruciton, flags=re.I))
-            and (not re.search(self.prompt.movemouse_regex, instruciton, flags=re.I))
-        )
-
-    def _process_instruction(self, instruciton: str):
-        end_idx = instruciton.find("`")
-        if end_idx != -1:
-            instruciton = instruciton[:end_idx]
-
-        instruciton = instruciton.replace("`", "")
-        instruciton = instruciton.replace("\n", "")
-        instruciton = instruciton.replace("\\n", "\n")
-        instruciton = instruciton.strip()
-        instruciton = instruciton.strip("'")
-
-        return instruciton
-    
-    def save_result(self, value):
-        path_dir = os.path.join("./result", self.problem+".json")
-        if os.path.exists(path_dir):
-            with open(path_dir, 'r') as f:
-                data = json.load(f)
-        else:
-            data = {}
-
-        if 'value' in data:
-            if value >0:
-                data['value'] += 1
-        else:
-            data['value'] = 0
-
-        with open(path_dir, 'w') as f:
-            json.dump(data, f)
+        message = self.get_response(pt)
         
-    def generate_reply(self, messages: List[Dict], default_reply: Union[str, Dict] = "") -> Union[str, Dict]:
+        action = self.process_instruction(message)
+        action = self.update_action(action)
+        # pt, instruction = self.rci_action(pt=pt, instruciton=message)
+        action = self.rci_action(action)
+
+        self.past_instruction.append(action)
+
+        return action
+
+    def initiate_chat(
+        self,
+        recipient: "ResponsiveAgent",
+        clear_history: Optional[bool] = False,
+        silent: Optional[bool] = False,
+        **context,
+    ):
+        # main
+        self._prepare_chat(recipient, clear_history)
+        states = self.real_env.reset(seeds=[random.random()], record_screenshots=True)
+        self.set_goal(states[0].utterance)
+        html_state = self.get_html_state(self.env_name, states)
+        self.update_html_state(html_state)
+        if not self.custom_gaol:
+            if self.with_task:
+                self.initialize_task()
+
+        if not self.prompt.init_plan_prompt or self.rci_plan_loop == -1:
+            return
+
+        pt = self.prompt.base_prompt
+        pt += self.webpage_state_prompt(True, with_task=self.with_task)
+        pt += self.prompt.init_plan_prompt
+        self.send(pt, recipient, silent=silent)
+                
+    def generate_reply(self, messages: List[Dict], sender: Optional[Agent] = None ) -> Union[str, Dict]:
         messages = messages[-1]
         messages = messages.get("content", "")
-        if not self.identify_plan:
-            if self.get_plan:
-                self.get_plan = False
-                self.current_plan = messages
-                reply = "According to the provided example plans, find problems with this plan for the given task. \
-                Based on your findings, just tell me what is the plan for the agent to complete the task? \
-                If the previous plan is right, repeat your previous answer again."
-                return reply
-            else:
-                self.identify_plan = True
-                self.current_plan = messages
-                step = 1
-                while True:
-                    if (str(step) + ".") not in messages:
-                        break
-                    else:
-                        step+=1
-                step -=1
-                self.unexecuted_steps += step
-        if self.unexecuted_steps != 0: 
-            reply = ""
-            if not self.identify_action:
-                self.action_pt = self.ask_action_prompt()
-                reply += self.action_pt
-                self.identify_action = True
-                return reply
-            else:
-                self.unexecuted_steps =  self.unexecuted_steps - 1
-                self.identify_action = False
-                messages = last_boxed_only_string(messages)
-                messages = remove_boxed(messages)
-                messages = remove_text(messages)
-                self.action_pt += self._process_instruction(messages) + "`."
-                self.instruciton = self._process_instruction(messages)
-                self.past_instruction.append(self.instruciton)
-                try:
-                    miniwob_action = _convert_to_miniwob_action(self.instruciton)
-                    states, rewards, dones, _ = self.env.step([miniwob_action])
-                except ValueError:
-                    reply += (
-                        "Unsuccess! Please return TERMINATE"
-                    )
-                    rewards = [0]
-                    self.save_result(-1)
+        ############################ plan stage
+        if self.plan_stage:         
+            ### rci
+            if self.rci_plan_loop!=0:
+                if self.criticizm:
+                    reply = "\n\nFind problems with this plan for the given task compared to the example plans.\n\n"
+                    self.criticizm = False
                     return reply
-                if self.unexecuted_steps != 0:
-                    if rewards[0] > 0: 
-                        reply = "Success! Everything is done now. Please return TERMINATE"
-                        self.save_result(1)
-                        return reply
-                    elif rewards[0] < 0: # bug 
-                        reply = "Unsuccess! Please return TERMINATE"
-                        self.save_result(-1)
-                        return reply
-                    else:
-                        html_state = _get_html_state(self.problem, states)
-                        self.html_state = html_state 
                 else:
-                    if rewards[0] > 0:
-                        reply = "Success! Everything is done now. Please return TERMINATE"
-                        self.save_result(1)
+                    reply = "\n\nBased on this, what is the plan for the agent to complete the task?\n\n"
+                    self.criticizm = True
+                    self.rci_plan_loop -=1
+                    return reply
+
+            messages = "\n" + messages
+            self.current_plan = messages
+            self.plan_stage = False
+        
+        ############################ action stage
+        if not self.plan_stage:
+            # ask action
+            if self.ask_action:
+                reply = self.webpage_state_prompt(with_task=self.with_task)
+                if self.prompt.init_plan_prompt and self.rci_plan_loop != -1:
+                    reply += self.current_plan_prompt()
+                reply += self.instruction_history_prompt()
+                if self.past_instruction:
+                    update_action_prompt = self.prompt.action_prompt.replace(
+                        "{prev_inst}", self.past_instruction[-1]
+                    )
+                    if len(self.past_instruction) == 1:
+                        update_action_prompt = self.prompt.action_prompt.replace(
+                            "{order}", "2nd"
+                        )
+                    elif len(self.past_instruction) == 2:
+                        update_action_prompt = self.prompt.action_prompt.replace(
+                            "{order}", "3rd"
+                        )
                     else:
-                        reply = "Unsuccess! Please return TERMINATE"
-                        self.save_result(-1)
+                        update_action_prompt = self.prompt.action_prompt.replace(
+                            "{order}", f"{len(self.past_instruction)+1}th"
+                        )
+
+                    action_prompt = update_action_prompt
+                else:
+                    action_prompt = self.prompt.first_action_prompt
+
+                if self.rci_plan_loop == -1:
+                    action_prompt = "Based on the task, " + action_prompt
+                else:
+                    action_prompt = (
+                        "Based on the plan and the history of instructions executed so far, "
+                        + action_prompt
+                    )
+                reply += action_prompt
+                self.ask_action = False
                 return reply
+
+            # update action
+            if self.judge_action and self.prompt.update_action and self.state_grounding:
+                reply = self.prompt.update_action
+                self.judge_action = False
+                return reply
+        
+            # rci
+            if self.rci_limit!=0:
+                instruciton = self.process_instruction(messages)
+                if self.check_regex(instruciton):      
+                    reply = self.prompt.rci_action_prompt
+                    self.rci_limit -=1
+                    return reply
+                else:
+                    instruciton = messages
                 
+            # execute
+            instruction = self.process_instruction(messages)
+            self.past_instruction.append(instruction)
+            try:
+                miniwob_action = self.convert_to_miniwob_action(instruction)
+
+                states, rewards, dones, _ = self.real_env.step([miniwob_action])
+            except ValueError:
+                print("Invalid action or rci action fail")
+                rewards = [0]
+                dones = [True]
+                
+            if rewards[0] !=0 or all(dones):   
+                if rewards[0] > 0:
+                    self.save_result(1)
+                    print("SUCCESS!!!!")
+                    self.real_env.close()
+                else:
+                    self.save_result(-1)
+                    print("Fail!!!!")     
+                    self.real_env.close()   
+            else:
+                html_state = self.get_html_state(self.env_name, states)
+                self.update_html_state(html_state)
+                # self.unexecuted_steps -=1
+                self.ask_action = True
+                self.receive(message = "Hold one!", sender = sender)

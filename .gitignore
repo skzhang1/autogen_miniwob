@@ -3,3 +3,5 @@ main_rci.py/
 history/
 __pycache__/
 result/
+trash/*
+.cache/
