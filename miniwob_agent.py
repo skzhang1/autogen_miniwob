@@ -61,6 +61,7 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
             **kwargs,
         )
         
+        self.register_auto_reply(trigger="miniwob_assistant", reply_func = MiniWobUserProxyAgent.reply_miniwob, position = 1)        
         with open("config.json") as config_file:
             api_key = json.load(config_file)["api_key"]
             openai.api_key = api_key
@@ -392,6 +393,21 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
 
         return action
 
+    def receive(
+        self,
+        message: Union[Dict, str],
+        sender: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
+    ):
+        
+        self._process_received_message(message, sender, silent)
+        if request_reply is False or request_reply is None and self.reply_at_receive[sender] is False:
+            return
+        reply = self.generate_reply(messages=self.chat_messages[sender], sender=sender)
+        if reply is not None:
+            self.send(reply, sender, silent=silent)
+            
     def initiate_chat(
         self,
         recipient: "ResponsiveAgent",
@@ -417,22 +433,23 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
         pt += self.prompt.init_plan_prompt
         self.send(pt, recipient, silent=silent)
                 
-    def generate_reply(self, messages: List[Dict], sender: Optional[Agent] = None ) -> Union[str, Dict]:
+    def reply_miniwob(self, messages: List[Dict], sender: Optional[Agent] = None, config: Optional[Any] = None) -> Union[str, Dict]:
         messages = messages[-1]
-        messages = messages.get("content", "")
-        ############################ plan stage
+        if not isinstance(messages,str): 
+            messages = messages.get("content", "")
+            
         if self.plan_stage:         
             ### rci
             if self.rci_plan_loop!=0:
                 if self.criticizm:
                     reply = "\n\nFind problems with this plan for the given task compared to the example plans.\n\n"
                     self.criticizm = False
-                    return reply
+                    return True, reply
                 else:
                     reply = "\n\nBased on this, what is the plan for the agent to complete the task?\n\n"
                     self.criticizm = True
                     self.rci_plan_loop -=1
-                    return reply
+                    return True, reply
 
             messages = "\n" + messages
             self.current_plan = messages
@@ -440,7 +457,6 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
         
         ############################ action stage
         if not self.plan_stage:
-            # ask action
             if self.ask_action:
                 reply = self.webpage_state_prompt(with_task=self.with_task)
                 if self.prompt.init_plan_prompt and self.rci_plan_loop != -1:
@@ -476,13 +492,13 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
                     )
                 reply += action_prompt
                 self.ask_action = False
-                return reply
+                return True, reply
 
             # update action
             if self.judge_action and self.prompt.update_action and self.state_grounding:
                 reply = self.prompt.update_action
                 self.judge_action = False
-                return reply
+                return True, reply
         
             # rci
             if self.rci_limit!=0:
@@ -490,10 +506,10 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
                 if self.check_regex(instruciton):      
                     reply = self.prompt.rci_action_prompt
                     self.rci_limit -=1
-                    return reply
+                    return True, reply
                 else:
                     instruciton = messages
-                
+                    
             # execute
             instruction = self.process_instruction(messages)
             self.past_instruction.append(instruction)
@@ -501,7 +517,7 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
                 miniwob_action = self.convert_to_miniwob_action(instruction)
 
                 states, rewards, dones, _ = self.real_env.step([miniwob_action])
-            except ValueError:
+            except (ValueError, TypeError):
                 print("Invalid action or rci action fail")
                 rewards = [0]
                 dones = [True]
@@ -511,13 +527,14 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
                     self.save_result(1)
                     print("SUCCESS!!!!")
                     self.real_env.close()
+                    return True, None
                 else:
                     self.save_result(-1)
                     print("Fail!!!!")     
                     self.real_env.close()   
+                    return True, None
             else:
                 html_state = self.get_html_state(self.env_name, states)
                 self.update_html_state(html_state)
-                # self.unexecuted_steps -=1
                 self.ask_action = True
-                self.receive(message = "Hold one!", sender = sender)
+                return False, None
