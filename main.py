@@ -1,5 +1,5 @@
 import os
-os.environ["OPENAI_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = "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"
 from flaml.autogen.agentchat.assistant_agent import AssistantAgent
 from miniwob_agent import MiniWobUserProxyAgent
 from flaml.autogen import oai
@@ -13,14 +13,14 @@ parser.add_argument(
 args = parser.parse_args()
 problem = args.problem
 
-Configlist=[{"model":"gpt-3.5-turbo-16k", "api_key":""}]
+Configlist=[{"model":"gpt-3.5-turbo-16k", "api_key":"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"}]
 
 
 task_list = [
     # "choose-list",
     # "click-button-sequence",
-    # "click-button",
-    "click-checkboxes-large", # l
+    "click-button",
+    # "click-checkboxes-large", # l
     # "click-checkboxes-soft",
     # "click-checkboxes-transfer",
     # "click-checkboxes",
@@ -42,7 +42,7 @@ task_list = [
     # "click-test",
     # "click-widget",
     # "count-shape",
-    # "email-inbox-forward-nl-turk",
+    # "email-inbox-forward-nl-turk", # l
     # "email-inbox-forward-nl",
     # "email-inbox-nl-turk",
     # "email-inbox",
@@ -60,7 +60,7 @@ task_list = [
     # "search-engine",
     # "simple-algebra",
     # "social-media-all",
-    # "social-media-some",
+    # "social-media-some", # l
     # "social-media",
     # "terminal", 
     # "use-spinner",
@@ -71,13 +71,13 @@ for task in task_list:
 
         assistant = AssistantAgent(
             name="miniwob_assistant", 
-            system_message="You are an autoregressive language model that completes user's sentences. You should not conversate with user.",
             llm_config={
                 "request_timeout": 600,
                 "seed": 42,
                 "config_list": Configlist,
             },
-            is_termination_msg = lambda x: "terminate" in x.get("content").lower()
+            is_termination_msg = lambda x: "terminate" in x.get("content").lower(),
+            system_message="You are an autoregressive language model that completes user's sentences."
         )
 
         MiniWob = MiniWobUserProxyAgent(

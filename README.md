@@ -75,10 +75,9 @@ We make a comparison with the state of the art method RCI[1].
 
 <img src="artifacts/result.png" alt="image-20230530212605407" style="zoom: 45%;" />
 
+## Notice
 
-1. Including all clicking tasks from easy to hard
-2. Remove examples that will exceed tokens limit when agent interactions
-
+This implementation is partially based on [rci-agent](https://github.com/posgnu/rci-agent), including prompts and data processing.
 
 ## Reference
 
