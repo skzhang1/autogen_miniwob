@@ -362,4 +362,4 @@ class MiniWobUserProxyAgent(ResponsiveAgent):
                 html_state = self._get_html_state(self.env_name, states)
                 self._update_html_state(html_state)
                 self.ask_action = True
-                return False, None
+                return 'True', 'Hold on, please wait for my next instruction.' 

@@ -1,5 +1,5 @@
 import os
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = ""
 from flaml.autogen.agentchat.assistant_agent import AssistantAgent
 from miniwob_agent import MiniWobUserProxyAgent
 from flaml.autogen import oai
@@ -13,13 +13,13 @@ parser.add_argument(
 args = parser.parse_args()
 problem = args.problem
 
-Configlist=[{"model":"gpt-3.5-turbo-16k", "api_key":"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"}]
+Configlist=[{"model":"gpt-3.5-turbo-16k", "api_key":""}]
 
 
 task_list = [
-    # "choose-list",
+    "choose-list",
     # "click-button-sequence",
-    "click-button",
+    # "click-button",
     # "click-checkboxes-large", # l
     # "click-checkboxes-soft",
     # "click-checkboxes-transfer",
